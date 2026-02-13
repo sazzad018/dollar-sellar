@@ -4,7 +4,6 @@ import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
 import Charts from './components/Charts';
-import AIInsights from './components/AIInsights';
 import { LayoutDashboard, Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 
@@ -202,9 +201,6 @@ const App: React.FC = () => {
         
         {/* Dashboard Stats */}
         <Dashboard stats={stats} />
-
-        {/* AI Section */}
-        <AIInsights transactions={transactions} stats={stats} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column: Form */}
