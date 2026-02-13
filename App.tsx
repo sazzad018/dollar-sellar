@@ -4,32 +4,33 @@ import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
 import Charts from './components/Charts';
-import { LayoutDashboard, Cloud, CloudOff, Loader2 } from 'lucide-react';
+import { LayoutDashboard, Cloud, CloudOff, Loader2, HardDrive } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 
 const generateId = () => {
-  // Safe ID generation that works in non-secure contexts (http) too
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
 };
 
+const LOCAL_STORAGE_KEY = 'dollar_tracker_transactions';
+
 const App: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isOnline, setIsOnline] = useState(true);
+  const [isLocalStorage, setIsLocalStorage] = useState(false);
 
-  // Fetch transactions from Supabase on load
+  // Fetch transactions on load
   useEffect(() => {
     fetchTransactions();
   }, []);
 
   const fetchTransactions = async () => {
+    // 1. If Supabase is not configured, load from LocalStorage immediately
     if (!supabase) {
-      console.warn("Supabase client is not initialized. Check environment variables.");
-      setIsOnline(false);
-      setLoading(false);
+      console.log("Supabase not configured. Using Local Storage.");
+      loadFromLocal();
       return;
     }
 
@@ -40,32 +41,51 @@ const App: React.FC = () => {
         .select('*')
         .order('date', { ascending: true });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       if (data) {
         setTransactions(data as Transaction[]);
-        setIsOnline(true);
+        setIsLocalStorage(false);
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
-      setIsOnline(false); // Assume connection issue or config missing
+      console.error("Error fetching data from Supabase:", error);
+      // Fallback to local storage if connection fails
+      loadFromLocal();
     } finally {
       setLoading(false);
     }
   };
 
+  const loadFromLocal = () => {
+    setIsLocalStorage(true);
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (stored) {
+        setTransactions(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error("Failed to parse local storage", e);
+    }
+    setLoading(false);
+  };
+
+  const saveToLocal = (txs: Transaction[]) => {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(txs));
+  };
+
   const addTransaction = async (newTx: Omit<Transaction, 'id'>) => {
-    if (!supabase) {
-      alert("Database configuration missing. Cannot save transaction.");
+    const tempId = generateId();
+    const transaction = { ...newTx, id: tempId };
+    
+    // Optimistic Update
+    const updatedTransactions = [...transactions, transaction];
+    setTransactions(updatedTransactions);
+
+    // If using local storage or no supabase
+    if (isLocalStorage || !supabase) {
+      saveToLocal(updatedTransactions);
       return;
     }
-
-    // Optimistic Update
-    const tempId = generateId();
-    const optimisticTx = { ...newTx, id: tempId };
-    setTransactions(prev => [...prev, optimisticTx]);
 
     try {
       const { data, error } = await supabase
@@ -80,22 +100,23 @@ const App: React.FC = () => {
         setTransactions(prev => prev.map(t => t.id === tempId ? data[0] as Transaction : t));
       }
     } catch (error) {
-      console.error("Error adding transaction:", error);
-      alert("Failed to save to database. Check internet connection.");
-      // Rollback
-      setTransactions(prev => prev.filter(t => t.id !== tempId));
+      console.error("Error adding transaction to Cloud:", error);
+      // Fallback: switch to local mode and save
+      setIsLocalStorage(true);
+      saveToLocal(updatedTransactions);
+      alert("Could not connect to database. Switched to Local Storage mode. Your data is safe locally.");
     }
   };
 
   const deleteTransaction = async (id: string) => {
-    if (!supabase) {
-      alert("Database configuration missing. Cannot delete transaction.");
+    // Optimistic Update
+    const updatedTransactions = transactions.filter(t => t.id !== id);
+    setTransactions(updatedTransactions);
+
+    if (isLocalStorage || !supabase) {
+      saveToLocal(updatedTransactions);
       return;
     }
-
-    // Optimistic Update
-    const previousTransactions = [...transactions];
-    setTransactions(prev => prev.filter(t => t.id !== id));
 
     try {
       const { error } = await supabase
@@ -106,20 +127,18 @@ const App: React.FC = () => {
       if (error) throw error;
     } catch (error) {
       console.error("Error deleting transaction:", error);
-      alert("Failed to delete. Check internet connection.");
-      // Rollback
-      setTransactions(previousTransactions);
+      setIsLocalStorage(true);
+      saveToLocal(updatedTransactions);
     }
   };
 
-  // Complex business logic for weighted average calculation
+  // Weighted average calculation
   const stats = useMemo<PortfolioStats>(() => {
     let currentHoldingsUSD = 0;
-    let totalInvestedBDT = 0; // For current holdings
+    let totalInvestedBDT = 0;
     let totalSoldBDT = 0;
     let totalRealizedProfit = 0;
 
-    // We iterate chronologically
     const sortedTx = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     let totalCostBasisBDT = 0;
@@ -129,20 +148,16 @@ const App: React.FC = () => {
         currentHoldingsUSD += tx.amountUSD;
         totalCostBasisBDT += tx.totalBDT; 
       } else {
-        // SELL
         let avgCost = 0;
         if (currentHoldingsUSD > 0) {
             avgCost = totalCostBasisBDT / currentHoldingsUSD;
         }
-
         const costOfSoldGoods = tx.amountUSD * avgCost;
-        const revenue = tx.totalBDT;
-        const profit = revenue - costOfSoldGoods;
+        const profit = tx.totalBDT - costOfSoldGoods;
 
         totalRealizedProfit += profit;
         totalSoldBDT += tx.totalBDT;
         
-        // Reduce inventory
         currentHoldingsUSD -= tx.amountUSD;
         totalCostBasisBDT -= costOfSoldGoods; 
       }
@@ -164,7 +179,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -179,15 +193,15 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
              {loading ? (
                <div className="flex items-center gap-1 text-xs text-blue-600">
-                 <Loader2 className="w-4 h-4 animate-spin" /> Syncing...
+                 <Loader2 className="w-4 h-4 animate-spin" /> Loading...
                </div>
-             ) : isOnline ? (
-               <div className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-100">
-                 <Cloud className="w-3 h-3" /> Online DB
+             ) : isLocalStorage ? (
+               <div className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded-full border border-amber-200" title="Data is saved in your browser only">
+                 <HardDrive className="w-3 h-3" /> Local Storage
                </div>
              ) : (
-               <div className="flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded-full border border-red-100">
-                 <CloudOff className="w-3 h-3" /> DB Error
+               <div className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-100">
+                 <Cloud className="w-3 h-3" /> Cloud Sync
                </div>
              )}
              <div className="text-sm font-medium text-gray-900 border-l pl-3 border-gray-200">
@@ -198,23 +212,18 @@ const App: React.FC = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* Dashboard Stats */}
         <Dashboard stats={stats} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Form */}
           <div className="lg:col-span-1">
             <TransactionForm onAddTransaction={addTransaction} />
           </div>
 
-          {/* Right Column: List & Charts */}
           <div className="lg:col-span-2 space-y-8">
             <Charts transactions={transactions} />
             <TransactionList transactions={transactions} onDelete={deleteTransaction} />
           </div>
         </div>
-
       </main>
     </div>
   );
