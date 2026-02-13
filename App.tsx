@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Transaction, PortfolioStats } from './types';
+import { Transaction, PortfolioStats, Expense, Deposit } from './types';
 import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
 import Charts from './components/Charts';
-import { LayoutDashboard, Cloud, CloudOff, Loader2, HardDrive } from 'lucide-react';
+import ExpenseForm from './components/ExpenseForm';
+import ExpenseList from './components/ExpenseList';
+import { LayoutDashboard, Cloud, Loader2, HardDrive, Receipt, ArrowRightLeft } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 
 const generateId = () => {
@@ -15,18 +17,23 @@ const generateId = () => {
 };
 
 const LOCAL_STORAGE_KEY = 'dollar_tracker_transactions';
+const LOCAL_STORAGE_EXPENSE_KEY = 'dollar_tracker_expenses';
+const LOCAL_STORAGE_DEPOSIT_KEY = 'dollar_tracker_deposits';
 
 const App: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'trading' | 'expenses'>('trading');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLocalStorage, setIsLocalStorage] = useState(false);
 
-  // Fetch transactions on load
+  // Fetch data on load
   useEffect(() => {
-    fetchTransactions();
+    fetchData();
   }, []);
 
-  const fetchTransactions = async () => {
+  const fetchData = async () => {
     // 1. If Supabase is not configured, load from LocalStorage immediately
     if (!supabase) {
       console.log("Supabase not configured. Using Local Storage.");
@@ -36,20 +43,37 @@ const App: React.FC = () => {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // Fetch Transactions
+      const { data: txData, error: txError } = await supabase
         .from('transactions')
         .select('*')
         .order('date', { ascending: true });
 
-      if (error) throw error;
+      if (txError) throw txError;
+      if (txData) setTransactions(txData as Transaction[]);
 
-      if (data) {
-        setTransactions(data as Transaction[]);
-        setIsLocalStorage(false);
-      }
+      // Fetch Expenses
+      const { data: expData, error: expError } = await supabase
+        .from('expenses')
+        .select('*')
+        .order('date', { ascending: true });
+
+      if (expError) console.warn("Could not fetch expenses:", expError.message);
+      else if (expData) setExpenses(expData as Expense[]);
+
+      // Fetch Deposits
+      const { data: depData, error: depError } = await supabase
+        .from('deposits')
+        .select('*')
+        .order('date', { ascending: true });
+
+      if (depError) console.warn("Could not fetch deposits (Table might be missing):", depError.message);
+      else if (depData) setDeposits(depData as Deposit[]);
+
+      setIsLocalStorage(false);
     } catch (error) {
       console.error("Error fetching data from Supabase:", error);
-      // Fallback to local storage if connection fails
       loadFromLocal();
     } finally {
       setLoading(false);
@@ -59,80 +83,143 @@ const App: React.FC = () => {
   const loadFromLocal = () => {
     setIsLocalStorage(true);
     try {
-      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (stored) {
-        setTransactions(JSON.parse(stored));
-      }
+      const storedTx = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (storedTx) setTransactions(JSON.parse(storedTx));
+
+      const storedExp = localStorage.getItem(LOCAL_STORAGE_EXPENSE_KEY);
+      if (storedExp) setExpenses(JSON.parse(storedExp));
+
+      const storedDep = localStorage.getItem(LOCAL_STORAGE_DEPOSIT_KEY);
+      if (storedDep) setDeposits(JSON.parse(storedDep));
     } catch (e) {
       console.error("Failed to parse local storage", e);
     }
     setLoading(false);
   };
 
-  const saveToLocal = (txs: Transaction[]) => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(txs));
+  const saveToLocal = (key: string, data: any) => {
+    localStorage.setItem(key, JSON.stringify(data));
   };
 
+  // --- Transaction Logic ---
   const addTransaction = async (newTx: Omit<Transaction, 'id'>) => {
     const tempId = generateId();
     const transaction = { ...newTx, id: tempId };
-    
-    // Optimistic Update
     const updatedTransactions = [...transactions, transaction];
     setTransactions(updatedTransactions);
 
-    // If using local storage or no supabase
     if (isLocalStorage || !supabase) {
-      saveToLocal(updatedTransactions);
+      saveToLocal(LOCAL_STORAGE_KEY, updatedTransactions);
       return;
     }
 
     try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .insert([newTx])
-        .select();
-
+      const { data, error } = await supabase.from('transactions').insert([newTx]).select();
       if (error) throw error;
-
-      // Replace optimistic transaction with real one from DB
-      if (data) {
-        setTransactions(prev => prev.map(t => t.id === tempId ? data[0] as Transaction : t));
-      }
+      if (data) setTransactions(prev => prev.map(t => t.id === tempId ? data[0] as Transaction : t));
     } catch (error) {
       console.error("Error adding transaction to Cloud:", error);
-      // Fallback: switch to local mode and save
       setIsLocalStorage(true);
-      saveToLocal(updatedTransactions);
-      alert("Could not connect to database. Switched to Local Storage mode. Your data is safe locally.");
+      saveToLocal(LOCAL_STORAGE_KEY, updatedTransactions);
+      alert("Switched to Local Storage mode.");
     }
   };
 
   const deleteTransaction = async (id: string) => {
-    // Optimistic Update
     const updatedTransactions = transactions.filter(t => t.id !== id);
     setTransactions(updatedTransactions);
 
     if (isLocalStorage || !supabase) {
-      saveToLocal(updatedTransactions);
+      saveToLocal(LOCAL_STORAGE_KEY, updatedTransactions);
       return;
     }
 
     try {
-      const { error } = await supabase
-        .from('transactions')
-        .delete()
-        .eq('id', id);
-
+      const { error } = await supabase.from('transactions').delete().eq('id', id);
       if (error) throw error;
     } catch (error) {
-      console.error("Error deleting transaction:", error);
       setIsLocalStorage(true);
-      saveToLocal(updatedTransactions);
+      saveToLocal(LOCAL_STORAGE_KEY, updatedTransactions);
     }
   };
 
-  // Weighted average calculation
+  // --- Expense Logic ---
+  const addExpense = async (newExp: Omit<Expense, 'id'>) => {
+    const tempId = generateId();
+    const expense = { ...newExp, id: tempId };
+    const updatedExpenses = [...expenses, expense];
+    setExpenses(updatedExpenses);
+
+    if (isLocalStorage || !supabase) {
+      saveToLocal(LOCAL_STORAGE_EXPENSE_KEY, updatedExpenses);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.from('expenses').insert([newExp]).select();
+      if (error) throw error;
+      if (data) setExpenses(prev => prev.map(e => e.id === tempId ? data[0] as Expense : e));
+    } catch (error) {
+      saveToLocal(LOCAL_STORAGE_EXPENSE_KEY, updatedExpenses);
+    }
+  };
+
+  const deleteExpense = async (id: string) => {
+    const updatedExpenses = expenses.filter(e => e.id !== id);
+    setExpenses(updatedExpenses);
+
+    if (isLocalStorage || !supabase) {
+      saveToLocal(LOCAL_STORAGE_EXPENSE_KEY, updatedExpenses);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('expenses').delete().eq('id', id);
+      if (error) throw error;
+    } catch (error) {
+      saveToLocal(LOCAL_STORAGE_EXPENSE_KEY, updatedExpenses);
+    }
+  };
+
+  // --- Deposit Logic ---
+  const addDeposit = async (newDep: Omit<Deposit, 'id'>) => {
+    const tempId = generateId();
+    const deposit = { ...newDep, id: tempId };
+    const updatedDeposits = [...deposits, deposit];
+    setDeposits(updatedDeposits);
+
+    if (isLocalStorage || !supabase) {
+      saveToLocal(LOCAL_STORAGE_DEPOSIT_KEY, updatedDeposits);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.from('deposits').insert([newDep]).select();
+      if (error) throw error;
+      if (data) setDeposits(prev => prev.map(d => d.id === tempId ? data[0] as Deposit : d));
+    } catch (error) {
+      saveToLocal(LOCAL_STORAGE_DEPOSIT_KEY, updatedDeposits);
+    }
+  };
+
+  const deleteDeposit = async (id: string) => {
+    const updatedDeposits = deposits.filter(d => d.id !== id);
+    setDeposits(updatedDeposits);
+
+    if (isLocalStorage || !supabase) {
+      saveToLocal(LOCAL_STORAGE_DEPOSIT_KEY, updatedDeposits);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('deposits').delete().eq('id', id);
+      if (error) throw error;
+    } catch (error) {
+      saveToLocal(LOCAL_STORAGE_DEPOSIT_KEY, updatedDeposits);
+    }
+  };
+
+  // Stats Calculation
   const stats = useMemo<PortfolioStats>(() => {
     let currentHoldingsUSD = 0;
     let totalInvestedBDT = 0;
@@ -140,7 +227,6 @@ const App: React.FC = () => {
     let totalRealizedProfit = 0;
 
     const sortedTx = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    
     let totalCostBasisBDT = 0;
 
     sortedTx.forEach(tx => {
@@ -154,10 +240,8 @@ const App: React.FC = () => {
         }
         const costOfSoldGoods = tx.amountUSD * avgCost;
         const profit = tx.totalBDT - costOfSoldGoods;
-
         totalRealizedProfit += profit;
         totalSoldBDT += tx.totalBDT;
-        
         currentHoldingsUSD -= tx.amountUSD;
         totalCostBasisBDT -= costOfSoldGoods; 
       }
@@ -177,6 +261,23 @@ const App: React.FC = () => {
     };
   }, [transactions]);
 
+  // Calculate Net Cash Balance
+  const currentBalance = useMemo(() => {
+    const totalDeposits = deposits.reduce((sum, d) => sum + d.amountBDT, 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + e.amountBDT, 0);
+    
+    // Trading Cash Flow: Sell = Inflow, Buy = Outflow
+    let tradingInflow = 0;
+    let tradingOutflow = 0;
+    
+    transactions.forEach(t => {
+      if (t.type === 'SELL') tradingInflow += t.totalBDT;
+      if (t.type === 'BUY') tradingOutflow += t.totalBDT;
+    });
+
+    return (totalDeposits + tradingInflow) - (tradingOutflow + totalExpenses);
+  }, [deposits, expenses, transactions]);
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
@@ -193,37 +294,77 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
              {loading ? (
                <div className="flex items-center gap-1 text-xs text-blue-600">
-                 <Loader2 className="w-4 h-4 animate-spin" /> Loading...
+                 <Loader2 className="w-4 h-4 animate-spin" />
                </div>
              ) : isLocalStorage ? (
-               <div className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded-full border border-amber-200" title="Data is saved in your browser only">
-                 <HardDrive className="w-3 h-3" /> Local Storage
+               <div className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
+                 <HardDrive className="w-3 h-3" /> Local
                </div>
              ) : (
                <div className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-100">
-                 <Cloud className="w-3 h-3" /> Cloud Sync
+                 <Cloud className="w-3 h-3" /> Cloud
                </div>
              )}
-             <div className="text-sm font-medium text-gray-900 border-l pl-3 border-gray-200">
-               {new Date().toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short'})}
-             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Dashboard stats={stats} />
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1">
-            <TransactionForm onAddTransaction={addTransaction} />
-          </div>
-
-          <div className="lg:col-span-2 space-y-8">
-            <Charts transactions={transactions} />
-            <TransactionList transactions={transactions} onDelete={deleteTransaction} />
-          </div>
+        
+        {/* Navigation Tabs */}
+        <div className="flex gap-2 mb-8 bg-white p-1 rounded-xl w-fit border border-gray-100 shadow-sm mx-auto md:mx-0">
+          <button
+            onClick={() => setActiveTab('trading')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              activeTab === 'trading' 
+              ? 'bg-blue-600 text-white shadow-md' 
+              : 'text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            <ArrowRightLeft className="w-4 h-4" /> Trading
+          </button>
+          <button
+            onClick={() => setActiveTab('expenses')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              activeTab === 'expenses' 
+              ? 'bg-purple-600 text-white shadow-md' 
+              : 'text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            <Receipt className="w-4 h-4" /> Cash & Expenses
+          </button>
         </div>
+
+        {activeTab === 'trading' ? (
+          <>
+            <Dashboard stats={stats} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-1">
+                <TransactionForm onAddTransaction={addTransaction} />
+              </div>
+              <div className="lg:col-span-2 space-y-8">
+                <Charts transactions={transactions} />
+                <TransactionList transactions={transactions} onDelete={deleteTransaction} />
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-300">
+            <div className="lg:col-span-1">
+               <ExpenseForm onAddExpense={addExpense} onAddDeposit={addDeposit} />
+            </div>
+            <div className="lg:col-span-2">
+               <ExpenseList 
+                 expenses={expenses} 
+                 deposits={deposits}
+                 currentBalance={currentBalance}
+                 onDeleteExpense={deleteExpense} 
+                 onDeleteDeposit={deleteDeposit} 
+               />
+            </div>
+          </div>
+        )}
+
       </main>
     </div>
   );

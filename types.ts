@@ -17,3 +17,17 @@ export interface PortfolioStats {
   totalInvestedBDT: number;
   totalSoldBDT: number;
 }
+
+export interface Expense {
+  id: string;
+  amountBDT: number;
+  reason: string;
+  date: string;
+}
+
+export interface Deposit {
+  id: string;
+  amountBDT: number;
+  source: string;
+  date: string;
+}
