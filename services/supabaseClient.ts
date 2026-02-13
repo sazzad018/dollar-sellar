@@ -1,9 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-// IMPORTANT: Do not paste the actual URL/Key here directly after process.env.
-// The values are loaded from your Vercel Environment Variables.
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+// Safely access env vars to prevent "process is not defined" error in some browser runtimes
+const getEnv = (key: string) => {
+  try {
+    return process.env[key];
+  } catch (e) {
+    return undefined;
+  }
+};
+
+const supabaseUrl = getEnv('SUPABASE_URL');
+const supabaseKey = getEnv('SUPABASE_KEY');
 
 export const supabase = (supabaseUrl && supabaseKey)
   ? createClient(supabaseUrl, supabaseKey)

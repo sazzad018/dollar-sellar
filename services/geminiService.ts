@@ -1,13 +1,23 @@
 import { GoogleGenAI } from "@google/genai";
 import { Transaction } from '../types';
 
+// Safely access env vars
+const getApiKey = () => {
+  try {
+    return process.env.API_KEY || '';
+  } catch (e) {
+    return '';
+  }
+};
+
 // Initialize Gemini Client
-// Note: In a real production app, ensure API_KEY is handled securely via backend proxy if possible.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 export const analyzeTradeHistory = async (transactions: Transaction[], currentStats: any): Promise<string> => {
-  if (!process.env.API_KEY) {
-    return "API Key is missing. Please configure your environment.";
+  const apiKey = getApiKey();
+  
+  if (!apiKey) {
+    return "API Key is missing. Please configure your environment variables (API_KEY).";
   }
 
   if (transactions.length === 0) {
