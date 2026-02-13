@@ -31,6 +31,7 @@ const getEnv = (key: string) => {
 const supabaseUrl = getEnv('SUPABASE_URL');
 const supabaseKey = getEnv('SUPABASE_KEY');
 
+// Only create the client if URL and Key are present to avoid runtime errors
 export const supabase = (supabaseUrl && supabaseKey)
   ? createClient(supabaseUrl, supabaseKey)
   : null;
