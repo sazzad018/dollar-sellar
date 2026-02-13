@@ -1,14 +1,31 @@
 import { GoogleGenAI } from "@google/genai";
 import { Transaction } from '../types';
 
-// Safely access env vars
-const getApiKey = () => {
+// Helper to reliably get environment variables
+const getEnv = (key: string) => {
+  let val = '';
   try {
-    return process.env.API_KEY || '';
-  } catch (e) {
-    return '';
-  }
+    // @ts-ignore
+    if (import.meta && import.meta.env) {
+      // @ts-ignore
+      val = import.meta.env[key] || import.meta.env[`VITE_${key}`];
+    }
+  } catch (e) {}
+
+  if (val) return val;
+
+  try {
+    if (process && process.env) {
+      val = process.env[key] || 
+            process.env[`REACT_APP_${key}`] || 
+            process.env[`NEXT_PUBLIC_${key}`] || 
+            process.env[`VITE_${key}`];
+    }
+  } catch (e) {}
+  return val;
 };
+
+const getApiKey = () => getEnv('API_KEY') || '';
 
 // Initialize Gemini Client
 const ai = new GoogleGenAI({ apiKey: getApiKey() });
@@ -17,7 +34,7 @@ export const analyzeTradeHistory = async (transactions: Transaction[], currentSt
   const apiKey = getApiKey();
   
   if (!apiKey) {
-    return "API Key is missing. Please configure your environment variables (API_KEY).";
+    return "API Key is missing. Please configure 'API_KEY' (or 'VITE_API_KEY') in your environment variables.";
   }
 
   if (transactions.length === 0) {

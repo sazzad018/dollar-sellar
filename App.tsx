@@ -8,6 +8,14 @@ import AIInsights from './components/AIInsights';
 import { LayoutDashboard, Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 
+const generateId = () => {
+  // Safe ID generation that works in non-secure contexts (http) too
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+};
+
 const App: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +64,7 @@ const App: React.FC = () => {
     }
 
     // Optimistic Update
-    const tempId = crypto.randomUUID();
+    const tempId = generateId();
     const optimisticTx = { ...newTx, id: tempId };
     setTransactions(prev => [...prev, optimisticTx]);
 
