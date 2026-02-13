@@ -1,6 +1,6 @@
 import React from 'react';
 import { Expense, Deposit } from '../types';
-import { Trash2, Wallet, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { Trash2, Wallet, ArrowDownCircle, ArrowUpCircle, TrendingDown } from 'lucide-react';
 
 interface Props {
   expenses: Expense[];
@@ -11,6 +11,9 @@ interface Props {
 }
 
 const ExpenseList: React.FC<Props> = ({ expenses, deposits, currentBalance, onDeleteExpense, onDeleteDeposit }) => {
+  // Calculate total expense
+  const totalExpense = expenses.reduce((sum, item) => sum + item.amountBDT, 0);
+
   // Merge and sort by date
   const allItems = [
     ...expenses.map(e => ({ ...e, type: 'EXPENSE' as const })),
@@ -19,21 +22,41 @@ const ExpenseList: React.FC<Props> = ({ expenses, deposits, currentBalance, onDe
 
   return (
     <div className="space-y-6 col-span-2">
-      {/* Balance Card */}
-      <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-6 text-white shadow-lg">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-white/10 rounded-lg">
-            <Wallet className="w-6 h-6 text-emerald-400" />
+      {/* Top Stats Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Balance Card */}
+        <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-6 text-white shadow-lg">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-white/10 rounded-lg">
+              <Wallet className="w-6 h-6 text-emerald-400" />
+            </div>
+            <span className="text-gray-300 font-medium">Current Net Balance (হাতে আছে)</span>
           </div>
-          <span className="text-gray-300 font-medium">Current Net Balance (হাতে আছে)</span>
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-4xl font-bold tracking-tight">৳{currentBalance.toLocaleString()}</h2>
+            <span className="text-sm text-gray-400">BDT</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Calculated from: (Deposits + Sales) - (Purchases + Expenses)
+          </p>
         </div>
-        <div className="flex items-baseline gap-2">
-          <h2 className="text-4xl font-bold tracking-tight">৳{currentBalance.toLocaleString()}</h2>
-          <span className="text-sm text-gray-400">BDT</span>
+
+        {/* Total Expense Card */}
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-center">
+           <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-red-50 rounded-lg">
+              <TrendingDown className="w-6 h-6 text-red-600" />
+            </div>
+            <span className="text-gray-600 font-medium">Total Expenses (মোট খরচ)</span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-4xl font-bold tracking-tight text-red-600">৳{totalExpense.toLocaleString()}</h2>
+            <span className="text-sm text-gray-400">BDT</span>
+          </div>
+           <p className="text-xs text-gray-400 mt-2">
+            Lifetime total expenses recorded
+          </p>
         </div>
-        <p className="text-xs text-gray-500 mt-2">
-          Calculated from: (Deposits + Sales) - (Purchases + Expenses)
-        </p>
       </div>
 
       {/* History List */}
