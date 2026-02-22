@@ -16,6 +16,7 @@ export interface PortfolioStats {
   totalRealizedProfit: number;
   totalInvestedBDT: number;
   totalSoldBDT: number;
+  dailyProfits: Record<string, number>;
 }
 
 export interface Expense {

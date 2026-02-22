@@ -228,6 +228,7 @@ const App: React.FC = () => {
 
     const sortedTx = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     let totalCostBasisBDT = 0;
+    const dailyProfits: Record<string, number> = {};
 
     sortedTx.forEach(tx => {
       if (tx.type === 'BUY') {
@@ -244,6 +245,9 @@ const App: React.FC = () => {
         totalSoldBDT += tx.totalBDT;
         currentHoldingsUSD -= tx.amountUSD;
         totalCostBasisBDT -= costOfSoldGoods; 
+
+        const dateKey = new Date(tx.date).toDateString();
+        dailyProfits[dateKey] = (dailyProfits[dateKey] || 0) + profit;
       }
     });
 
@@ -257,7 +261,8 @@ const App: React.FC = () => {
       averageBuyCost: currentHoldingsUSD > 0 ? totalCostBasisBDT / currentHoldingsUSD : 0,
       totalRealizedProfit,
       totalInvestedBDT: totalCostBasisBDT, 
-      totalSoldBDT
+      totalSoldBDT,
+      dailyProfits
     };
   }, [transactions]);
 
