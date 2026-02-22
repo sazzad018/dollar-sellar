@@ -222,45 +222,84 @@ const App: React.FC = () => {
   // Stats Calculation
   const stats = useMemo<PortfolioStats>(() => {
     let currentHoldingsUSD = 0;
-    let totalInvestedBDT = 0;
-    let totalSoldBDT = 0;
     let totalRealizedProfit = 0;
+    let totalSoldBDT = 0;
+    const dailyProfits: Record<string, number> = {};
+
+    // FIFO Inventory Tracking
+    // We store "lots" of USD bought: { amount: number, rate: number, date: string }
+    let inventory: { amount: number; rate: number; date: string }[] = [];
 
     const sortedTx = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    let totalCostBasisBDT = 0;
-    const dailyProfits: Record<string, number> = {};
 
     sortedTx.forEach(tx => {
       if (tx.type === 'BUY') {
+        // Add new lot to inventory
+        inventory.push({
+          amount: tx.amountUSD,
+          rate: tx.rateBDT,
+          date: tx.date
+        });
         currentHoldingsUSD += tx.amountUSD;
-        totalCostBasisBDT += tx.totalBDT; 
       } else {
-        let avgCost = 0;
-        if (currentHoldingsUSD > 0) {
-            avgCost = totalCostBasisBDT / currentHoldingsUSD;
+        // SELL Logic (FIFO)
+        let amountToSell = tx.amountUSD;
+        let costBasisForThisSale = 0;
+
+        // Consume inventory from oldest to newest
+        while (amountToSell > 0 && inventory.length > 0) {
+          const currentLot = inventory[0]; // Oldest lot
+
+          if (currentLot.amount <= amountToSell) {
+            // Consume entire lot
+            costBasisForThisSale += currentLot.amount * currentLot.rate;
+            amountToSell -= currentLot.amount;
+            inventory.shift(); // Remove empty lot
+          } else {
+            // Consume partial lot
+            costBasisForThisSale += amountToSell * currentLot.rate;
+            currentLot.amount -= amountToSell; // Reduce lot amount
+            amountToSell = 0;
+          }
         }
-        const costOfSoldGoods = tx.amountUSD * avgCost;
-        const profit = tx.totalBDT - costOfSoldGoods;
+
+        // If we sold more than we had (short selling / error case), assume 0 cost for the excess?
+        // Or just track what we could match. For now, let's assume valid data.
+        
+        const saleProceeds = tx.totalBDT; // This is what we sold it for
+        // If amountToSell > 0 here, it means we sold money we didn't "have" in history.
+        // In that case, cost basis for that missing part is effectively 0 (infinite profit) or needs handling.
+        // We will just proceed with calculated costBasisForThisSale.
+
+        const profit = saleProceeds - costBasisForThisSale;
         totalRealizedProfit += profit;
         totalSoldBDT += tx.totalBDT;
         currentHoldingsUSD -= tx.amountUSD;
-        totalCostBasisBDT -= costOfSoldGoods; 
 
         const dateKey = new Date(tx.date).toDateString();
         dailyProfits[dateKey] = (dailyProfits[dateKey] || 0) + profit;
       }
     });
 
-    if (currentHoldingsUSD < 0.01) {
-        currentHoldingsUSD = 0;
-        totalCostBasisBDT = 0;
+    // Calculate weighted average cost of remaining inventory
+    let totalInventoryCost = 0;
+    let totalInventoryAmount = 0;
+    inventory.forEach(lot => {
+      totalInventoryCost += lot.amount * lot.rate;
+      totalInventoryAmount += lot.amount;
+    });
+
+    // Handle small floating point errors
+    if (totalInventoryAmount < 0.01) {
+        totalInventoryAmount = 0;
+        totalInventoryCost = 0;
     }
 
     return {
-      currentHoldingsUSD,
-      averageBuyCost: currentHoldingsUSD > 0 ? totalCostBasisBDT / currentHoldingsUSD : 0,
+      currentHoldingsUSD: totalInventoryAmount,
+      averageBuyCost: totalInventoryAmount > 0 ? totalInventoryCost / totalInventoryAmount : 0,
       totalRealizedProfit,
-      totalInvestedBDT: totalCostBasisBDT, 
+      totalInvestedBDT: totalInventoryCost, 
       totalSoldBDT,
       dailyProfits
     };
