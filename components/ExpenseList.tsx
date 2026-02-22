@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Expense, Deposit } from '../types';
-import { Trash2, Wallet, ArrowDownCircle, ArrowUpCircle, TrendingDown } from 'lucide-react';
+import { Trash2, Wallet, ArrowDownCircle, ArrowUpCircle, TrendingDown, Calendar } from 'lucide-react';
 
 interface Props {
   expenses: Expense[];
@@ -13,6 +13,30 @@ interface Props {
 const ExpenseList: React.FC<Props> = ({ expenses, deposits, currentBalance, onDeleteExpense, onDeleteDeposit }) => {
   // Calculate total expense
   const totalExpense = expenses.reduce((sum, item) => sum + item.amountBDT, 0);
+
+  // Calculate daily expenses
+  const dailyExpenses = useMemo(() => {
+    const grouped: Record<string, number> = {};
+    expenses.forEach(expense => {
+      const dateObj = new Date(expense.date);
+      const dateKey = dateObj.toDateString(); // Use toDateString for grouping to ignore time
+      grouped[dateKey] = (grouped[dateKey] || 0) + expense.amountBDT;
+    });
+    return Object.entries(grouped)
+      .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
+      .slice(0, 6); // Last 6 active days
+  }, [expenses]);
+
+  const getDateLabel = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) return 'Today (আজ)';
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday (গতকাল)';
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
 
   // Merge and sort by date
   const allItems = [
@@ -57,6 +81,29 @@ const ExpenseList: React.FC<Props> = ({ expenses, deposits, currentBalance, onDe
             Lifetime total expenses recorded
           </p>
         </div>
+      </div>
+
+      {/* Daily Expenses Breakdown */}
+      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="p-2 bg-purple-50 rounded-lg">
+            <Calendar className="w-5 h-5 text-purple-600" />
+          </div>
+          <h3 className="font-semibold text-gray-800">Daily Expenses (প্রতিদিনের খরচ)</h3>
+        </div>
+        
+        {dailyExpenses.length === 0 ? (
+          <p className="text-sm text-gray-400 italic">No expenses recorded yet.</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+            {dailyExpenses.map(([dateKey, amount]) => (
+              <div key={dateKey} className="bg-gray-50 rounded-xl p-4 border border-gray-100 flex flex-col items-center text-center hover:bg-purple-50 transition-colors cursor-default">
+                <span className="text-xs font-medium text-gray-500 mb-1">{getDateLabel(dateKey)}</span>
+                <span className="text-lg font-bold text-gray-900">৳{amount.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* History List */}
