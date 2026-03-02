@@ -34,9 +34,9 @@ const TransactionForm: React.FC<Props> = ({ onAddTransaction }) => {
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-        <RefreshCcw className="w-5 h-5 text-blue-600" />
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors duration-200">
+      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+        <RefreshCcw className="w-5 h-5 text-blue-600 dark:text-blue-400" />
         New Transaction (নতুন লেনদেন)
       </h3>
       
@@ -45,8 +45,8 @@ const TransactionForm: React.FC<Props> = ({ onAddTransaction }) => {
           onClick={() => setType('BUY')}
           className={`flex-1 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
             type === 'BUY' 
-              ? 'bg-green-600 text-white shadow-lg shadow-green-200' 
-              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              ? 'bg-green-600 text-white shadow-lg shadow-green-200 dark:shadow-none' 
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           <Plus className="w-4 h-4" /> Buy (ক্রয়)
@@ -55,8 +55,8 @@ const TransactionForm: React.FC<Props> = ({ onAddTransaction }) => {
           onClick={() => setType('SELL')}
           className={`flex-1 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
             type === 'SELL' 
-              ? 'bg-red-600 text-white shadow-lg shadow-red-200' 
-              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              ? 'bg-red-600 text-white shadow-lg shadow-red-200 dark:shadow-none' 
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           <Minus className="w-4 h-4" /> Sell (বিক্রয়)
@@ -65,49 +65,49 @@ const TransactionForm: React.FC<Props> = ({ onAddTransaction }) => {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Amount (USD)</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Amount (USD)</label>
           <div className="relative">
-            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
             <input
               type="number"
               step="0.01"
               value={amountUSD}
               onChange={(e) => setAmountUSD(e.target.value)}
               placeholder="e.g. 100"
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
               required
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Rate (BDT per USD)</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Rate (BDT per USD)</label>
           <input
             type="number"
             step="0.01"
             value={rateBDT}
             onChange={(e) => setRateBDT(e.target.value)}
             placeholder="e.g. 110.50"
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Note (Optional)</label>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Note (Optional)</label>
           <input
             type="text"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="e.g. Client name"
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
           />
         </div>
 
         <div className="pt-2">
-           <div className="flex justify-between items-center text-sm text-gray-500 mb-4 px-1">
+           <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 mb-4 px-1">
               <span>Total BDT:</span>
-              <span className="font-bold text-gray-800">
+              <span className="font-bold text-gray-800 dark:text-gray-200">
                 {amountUSD && rateBDT 
                   ? (parseFloat(amountUSD) * parseFloat(rateBDT)).toLocaleString() 
                   : '0'} ৳

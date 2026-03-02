@@ -6,7 +6,7 @@ import TransactionList from './components/TransactionList';
 import Charts from './components/Charts';
 import ExpenseForm from './components/ExpenseForm';
 import ExpenseList from './components/ExpenseList';
-import { LayoutDashboard, Cloud, Loader2, HardDrive, Receipt, ArrowRightLeft } from 'lucide-react';
+import { LayoutDashboard, Cloud, Loader2, HardDrive, Receipt, ArrowRightLeft, Moon, Sun } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 
 const generateId = () => {
@@ -27,6 +27,28 @@ const App: React.FC = () => {
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLocalStorage, setIsLocalStorage] = useState(false);
+  
+  // Dark Mode State
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') === 'dark' ||
+        (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+    return false;
+  });
+
+  // Apply Dark Mode Class
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [darkMode]);
+
+  const toggleDarkMode = () => setDarkMode(!darkMode);
 
   // Fetch data on load
   useEffect(() => {
@@ -323,29 +345,36 @@ const App: React.FC = () => {
   }, [deposits, expenses, transactions]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20 transition-colors duration-200">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="bg-blue-600 p-2 rounded-lg">
               <LayoutDashboard className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900 tracking-tight">Dollar Tracker Pro</h1>
-              <p className="text-xs text-gray-500 hidden sm:block">Currency Trading Manager</p>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Dollar Tracker Pro</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">Currency Trading Manager</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
+             <button
+                onClick={toggleDarkMode}
+                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors"
+                aria-label="Toggle Dark Mode"
+              >
+                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
              {loading ? (
-               <div className="flex items-center gap-1 text-xs text-blue-600">
+               <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
                  <Loader2 className="w-4 h-4 animate-spin" />
                </div>
              ) : isLocalStorage ? (
-               <div className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
+               <div className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded-full border border-amber-200 dark:border-amber-800">
                  <HardDrive className="w-3 h-3" /> Local
                </div>
              ) : (
-               <div className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-100">
+               <div className="flex items-center gap-1 text-xs text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full border border-green-100 dark:border-green-800">
                  <Cloud className="w-3 h-3" /> Cloud
                </div>
              )}
@@ -356,13 +385,13 @@ const App: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {/* Navigation Tabs */}
-        <div className="flex gap-2 mb-8 bg-white p-1 rounded-xl w-fit border border-gray-100 shadow-sm mx-auto md:mx-0">
+        <div className="flex gap-2 mb-8 bg-white dark:bg-gray-800 p-1 rounded-xl w-fit border border-gray-100 dark:border-gray-700 shadow-sm mx-auto md:mx-0 transition-colors duration-200">
           <button
             onClick={() => setActiveTab('trading')}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === 'trading' 
               ? 'bg-blue-600 text-white shadow-md' 
-              : 'text-gray-500 hover:bg-gray-50'
+              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
             <ArrowRightLeft className="w-4 h-4" /> Trading
@@ -372,7 +401,7 @@ const App: React.FC = () => {
             className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === 'expenses' 
               ? 'bg-purple-600 text-white shadow-md' 
-              : 'text-gray-500 hover:bg-gray-50'
+              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
             <Receipt className="w-4 h-4" /> Cash & Expenses

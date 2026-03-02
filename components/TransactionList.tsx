@@ -69,20 +69,20 @@ const TransactionList: React.FC<Props> = ({ transactions, onDelete }) => {
 
   if (transactions.length === 0) {
     return (
-      <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
-        <p className="text-gray-400">No transactions yet. Start trading!</p>
+      <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 transition-colors duration-200">
+        <p className="text-gray-400 dark:text-gray-500">No transactions yet. Start trading!</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100">
-        <h3 className="font-semibold text-gray-800">Transaction History (লেনদেন ইতিহাস)</h3>
+    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors duration-200">
+      <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+        <h3 className="font-semibold text-gray-800 dark:text-gray-200">Transaction History (লেনদেন ইতিহাস)</h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left">
-          <thead className="bg-gray-50 text-xs uppercase text-gray-500 font-medium">
+          <thead className="bg-gray-50 dark:bg-gray-700/50 text-xs uppercase text-gray-500 dark:text-gray-400 font-medium">
             <tr>
               <th className="px-6 py-4">Type</th>
               <th className="px-6 py-4">Date</th>
@@ -93,50 +93,50 @@ const TransactionList: React.FC<Props> = ({ transactions, onDelete }) => {
               <th className="px-6 py-4 text-right">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {transactions.slice().reverse().map((t) => {
               const profitPerUnit = profitData.get(t.id);
               const hasProfit = profitPerUnit !== undefined;
               const isProfit = (profitPerUnit || 0) >= 0;
 
               return (
-                <tr key={t.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
                       t.type === 'BUY' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-red-100 text-red-700'
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
+                        : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                     }`}>
                       {t.type === 'BUY' ? <ArrowDownLeft className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
                       {t.type}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                     {new Date(t.date).toLocaleDateString()}
-                    <div className="text-xs text-gray-400">{new Date(t.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">{new Date(t.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                   </td>
-                  <td className="px-6 py-4 font-medium text-gray-900">${t.amountUSD.toLocaleString()}</td>
+                  <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">${t.amountUSD.toLocaleString()}</td>
                   
                   {/* Profit Per USD Column */}
                   <td className="px-6 py-4 text-sm">
                     {t.type === 'SELL' && hasProfit ? (
-                      <div className={`flex items-center gap-1 font-medium ${isProfit ? 'text-green-600' : 'text-red-500'}`}>
+                      <div className={`flex items-center gap-1 font-medium ${isProfit ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
                         {isProfit ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                         {isProfit ? '+' : ''}{profitPerUnit?.toFixed(2)} ৳
                       </div>
                     ) : (
-                      <div className="text-gray-300 pl-2">
+                      <div className="text-gray-300 dark:text-gray-600 pl-2">
                         <Minus className="w-3 h-3" />
                       </div>
                     )}
                   </td>
 
-                  <td className="px-6 py-4 text-sm text-gray-600">৳{t.rateBDT}</td>
-                  <td className="px-6 py-4 text-right font-medium text-gray-900">৳{t.totalBDT.toLocaleString()}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">৳{t.rateBDT}</td>
+                  <td className="px-6 py-4 text-right font-medium text-gray-900 dark:text-white">৳{t.totalBDT.toLocaleString()}</td>
                   <td className="px-6 py-4 text-right">
                     <button 
                       onClick={() => onDelete(t.id)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

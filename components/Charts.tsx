@@ -32,8 +32,8 @@ const Charts: React.FC<Props> = ({ transactions }) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
       {/* Rate Trend Chart */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <h3 className="font-semibold text-gray-800 mb-6">Rate Trend (BDT/USD)</h3>
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors duration-200">
+        <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-6">Rate Trend (BDT/USD)</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data}>
@@ -43,11 +43,18 @@ const Charts: React.FC<Props> = ({ transactions }) => {
                   <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <XAxis dataKey="date" tick={{fontSize: 12}} stroke="#9ca3af" axisLine={false} tickLine={false} />
-              <YAxis domain={['auto', 'auto']} tick={{fontSize: 12}} stroke="#9ca3af" axisLine={false} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid)" />
+              <XAxis dataKey="date" tick={{fontSize: 12}} stroke="var(--chart-text)" axisLine={false} tickLine={false} />
+              <YAxis domain={['auto', 'auto']} tick={{fontSize: 12}} stroke="var(--chart-text)" axisLine={false} tickLine={false} />
               <Tooltip 
-                contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                contentStyle={{
+                  borderRadius: '8px', 
+                  border: 'none', 
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                  backgroundColor: 'var(--tooltip-bg)',
+                  color: 'var(--tooltip-text)'
+                }}
+                itemStyle={{ color: 'var(--tooltip-text)' }}
               />
               <Area type="monotone" dataKey="rate" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorRate)" />
             </AreaChart>
@@ -56,15 +63,25 @@ const Charts: React.FC<Props> = ({ transactions }) => {
       </div>
 
       {/* Volume Chart */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <h3 className="font-semibold text-gray-800 mb-6">Trade Volume (USD)</h3>
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors duration-200">
+        <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-6">Trade Volume (USD)</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <XAxis dataKey="date" tick={{fontSize: 12}} stroke="#9ca3af" axisLine={false} tickLine={false} />
-              <YAxis tick={{fontSize: 12}} stroke="#9ca3af" axisLine={false} tickLine={false} />
-              <Tooltip cursor={{fill: '#f9fafb'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid)" />
+              <XAxis dataKey="date" tick={{fontSize: 12}} stroke="var(--chart-text)" axisLine={false} tickLine={false} />
+              <YAxis tick={{fontSize: 12}} stroke="var(--chart-text)" axisLine={false} tickLine={false} />
+              <Tooltip 
+                cursor={{fill: 'var(--chart-grid)'}} 
+                contentStyle={{
+                  borderRadius: '8px', 
+                  border: 'none', 
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                  backgroundColor: 'var(--tooltip-bg)',
+                  color: 'var(--tooltip-text)'
+                }}
+                itemStyle={{ color: 'var(--tooltip-text)' }}
+              />
               <Legend />
               <Bar dataKey="amount" fill="#8884d8" radius={[4, 4, 0, 0]} name="Volume" />
             </BarChart>
