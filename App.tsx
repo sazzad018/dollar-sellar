@@ -382,15 +382,15 @@ const App: React.FC = () => {
         {activeTab === 'trading' ? (
           <>
             <Dashboard stats={stats} />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
               <div className="lg:col-span-1">
                 <TransactionForm onAddTransaction={addTransaction} />
               </div>
               <div className="lg:col-span-2 space-y-8">
                 <Charts transactions={transactions} />
-                <TransactionList transactions={transactions} onDelete={deleteTransaction} />
               </div>
             </div>
+            <TransactionList transactions={transactions} onDelete={deleteTransaction} />
           </>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-300">

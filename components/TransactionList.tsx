@@ -9,41 +9,58 @@ interface Props {
 
 const TransactionList: React.FC<Props> = ({ transactions, onDelete }) => {
   
-  // Calculate historical profit per unit for SELL transactions
+  // Calculate historical profit per unit for SELL transactions using FIFO
   const profitData = useMemo(() => {
-    // Sort chronologically (Oldest first) to calculate running average
+    // Sort chronologically (Oldest first)
     const sorted = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    let currentHoldings = 0;
-    let totalCost = 0;
     const profitMap = new Map<string, number>();
+    
+    // FIFO Inventory: { amount: number, rate: number }
+    let inventory: { amount: number; rate: number }[] = [];
 
     sorted.forEach(tx => {
       if (tx.type === 'BUY') {
-        currentHoldings += tx.amountUSD;
-        totalCost += tx.totalBDT;
+        // Add to inventory
+        inventory.push({ amount: tx.amountUSD, rate: tx.rateBDT });
       } else {
-        // SELL Logic
-        // Calculate Average Cost at that specific moment
-        const avgCost = currentHoldings > 0 ? totalCost / currentHoldings : 0;
+        // SELL Logic (FIFO)
+        let amountToSell = tx.amountUSD;
+        let costBasisForThisSale = 0;
         
-        // Profit Per Unit = Selling Rate - Average Buy Cost
-        const profitPerUnit = tx.rateBDT - avgCost;
+        // Create a temporary inventory copy to not mutate state if we were just calculating (but here we are iterating linearly so mutation is fine for this local scope)
+        // actually we need to mutate 'inventory' as we progress through time
         
-        // Store only if we had holdings (otherwise profit calc is invalid/infinite)
-        if (currentHoldings > 0) {
-           profitMap.set(tx.id, profitPerUnit);
+        // We need to handle the case where we might not have enough inventory (data error or short selling)
+        // For calculation purposes, if inventory is empty, we assume cost basis = 0 (infinite profit) or handle gracefully.
+        
+        let tempAmountToSell = amountToSell;
+        
+        // Consume inventory
+        while (tempAmountToSell > 0 && inventory.length > 0) {
+          const currentLot = inventory[0];
+          
+          if (currentLot.amount <= tempAmountToSell) {
+            // Consume entire lot
+            costBasisForThisSale += currentLot.amount * currentLot.rate;
+            tempAmountToSell -= currentLot.amount;
+            inventory.shift(); // Remove empty lot
+          } else {
+            // Consume partial lot
+            costBasisForThisSale += tempAmountToSell * currentLot.rate;
+            currentLot.amount -= tempAmountToSell;
+            tempAmountToSell = 0;
+          }
         }
-
-        // Update inventory
-        const costOfSoldGoods = tx.amountUSD * avgCost;
-        currentHoldings -= tx.amountUSD;
-        totalCost -= costOfSoldGoods;
-
-        if (currentHoldings <= 0.001) {
-            currentHoldings = 0;
-            totalCost = 0;
-        }
+        
+        // Calculate Profit
+        const saleRevenue = tx.totalBDT;
+        const totalProfit = saleRevenue - costBasisForThisSale;
+        
+        // Profit Per Unit = Total Profit / Amount Sold
+        const profitPerUnit = totalProfit / tx.amountUSD;
+        
+        profitMap.set(tx.id, profitPerUnit);
       }
     });
 
@@ -61,7 +78,7 @@ const TransactionList: React.FC<Props> = ({ transactions, onDelete }) => {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100">
-        <h3 className="font-semibold text-gray-800">Recent History (সাম্প্রতিক লেনদেন)</h3>
+        <h3 className="font-semibold text-gray-800">Transaction History (লেনদেন ইতিহাস)</h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left">
